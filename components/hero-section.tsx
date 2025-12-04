@@ -96,7 +96,7 @@ export default function HeroSection() {
                 }`}
               >
                 <span className="bg-gradient-to-l from-[#0F2647] via-[#1E3A5F] to-[#2A4473] bg-clip-text text-transparent">
- منصة الإمداد المتكاملة
+ منصة المورد المتكاملة
 </span>
               </h1>
 
