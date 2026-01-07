@@ -64,11 +64,21 @@ export default function SellerHomePage() {
   const [brand, setBrand] = useState<SellerBrand | null>(null)
   const [loadingBrand, setLoadingBrand] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<SellerShippingMethod>("standard")
+  const [vendorStatus, setVendorStatus] = useState<string | null>(null)
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token")
     if (storedToken) {
       setToken(storedToken)
+    }
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser)
+        setVendorStatus(user.vendorStatus || null)
+      } catch {
+        // ignore
+      }
     }
   }, [])
 
@@ -137,6 +147,20 @@ export default function SellerHomePage() {
       }
       if (data.user?.shippingMethod) {
         setShippingMethod(data.user.shippingMethod)
+      }
+      if (data.user?.vendorStatus) {
+        setVendorStatus(data.user.vendorStatus)
+        // Update localStorage
+        const storedUser = localStorage.getItem("user")
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser)
+            parsed.vendorStatus = data.user.vendorStatus
+            localStorage.setItem("user", JSON.stringify(parsed))
+          } catch {
+            // ignore
+          }
+        }
       }
     } catch (err: any) {
       // نكتفي بعرض الخطأ العام في الأعلى إن وجد
@@ -342,6 +366,27 @@ export default function SellerHomePage() {
           {!token && (
             <p className="text-sm text-red-600 mt-1">يجب تسجيل الدخول كبائع لإدارة المنتجات والمصانع.</p>
           )}
+          {vendorStatus === "pending" && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-2">
+              <p className="text-sm text-yellow-800">
+                <strong>حسابك قيد المراجعة:</strong> حسابك في انتظار موافقة المشرف. سيتم إشعارك عند الموافقة.
+              </p>
+            </div>
+          )}
+          {vendorStatus === "rejected" && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
+              <p className="text-sm text-red-800">
+                <strong>تم رفض حسابك:</strong> يرجى التواصل مع الإدارة لمزيد من المعلومات.
+              </p>
+            </div>
+          )}
+          {vendorStatus !== "approved" && vendorStatus !== null && (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mt-2">
+              <p className="text-sm text-gray-600">
+                بعض الميزات قد تكون محدودة حتى يتم اعتماد حسابك.
+              </p>
+            </div>
+          )}
           {error && (
             <p className="text-sm text-red-600 mt-1">{error}</p>
           )}
@@ -431,6 +476,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, name: e.target.value }))}
                         placeholder="مثال: أسمنت بورتلاندي"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -440,6 +486,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, description: e.target.value }))}
                         placeholder="وصف مختصر لخصائص واستخدام المنتج"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div>
@@ -447,7 +494,8 @@ export default function SellerHomePage() {
                       <select
                         value={productForm.category || ""}
                         onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value }))}
-                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C]"
+                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={vendorStatus !== "approved"}
                       >
                         <option value="">اختر فئة</option>
                         <option value="المواد الكميائىة">المواد الكميائىة</option>
@@ -475,6 +523,7 @@ export default function SellerHomePage() {
                           setProductImageFile(file)
                         }}
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                   </div>
@@ -495,6 +544,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, price: Number(e.target.value) }))}
                         placeholder="0"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div>
@@ -505,6 +555,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, stock: Number(e.target.value) }))}
                         placeholder="0"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                   </div>
@@ -524,7 +575,8 @@ export default function SellerHomePage() {
                         onChange={(e) =>
                           setProductForm((f) => ({ ...f, shippingMethod: e.target.value as SellerShippingMethod }))
                         }
-                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C]"
+                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={vendorStatus !== "approved"}
                       >
                         <option value="">اختر طريقة الشحن</option>
                         <option value="standard">شحن عادي (5-7 أيام)</option>
@@ -541,6 +593,7 @@ export default function SellerHomePage() {
                         placeholder="50"
                         min="0"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                   </div>
@@ -558,7 +611,8 @@ export default function SellerHomePage() {
                       <select
                         value={productForm.supplier || ""}
                         onChange={(e) => setProductForm((f) => ({ ...f, supplier: e.target.value }))}
-                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C]"
+                        className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C17A3C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={vendorStatus !== "approved"}
                       >
                         <option value="">اختر المصنع</option>
                         {factories.map((factory) => (
@@ -575,6 +629,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, color: e.target.value }))}
                         placeholder="مثال: أحمر، أزرق..."
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div>
@@ -584,6 +639,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, size: e.target.value }))}
                         placeholder="مثال: 50 كجم، 2 متر..."
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                   </div>
@@ -603,6 +659,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, feature1: e.target.value }))}
                         placeholder="مثال: مقاوم للرطوبة"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div>
@@ -612,6 +669,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, feature2: e.target.value }))}
                         placeholder="مثال: صديق للبيئة"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                     <div>
@@ -621,6 +679,7 @@ export default function SellerHomePage() {
                         onChange={(e) => setProductForm((f) => ({ ...f, feature3: e.target.value }))}
                         placeholder="ميزة إضافية"
                         className="h-11"
+                        disabled={vendorStatus !== "approved"}
                       />
                     </div>
                   </div>
@@ -640,7 +699,7 @@ export default function SellerHomePage() {
                   </Button>
                   <Button
                     className="bg-[#C17A3C] hover:bg-[#A66A30] px-8"
-                    disabled={loadingProducts || !token}
+                    disabled={loadingProducts || !token || vendorStatus !== "approved"}
                     onClick={handleSubmitProduct}
                   >
                     <Plus className="w-4 h-4 ml-2" />
@@ -726,6 +785,7 @@ export default function SellerHomePage() {
                       onChange={(e) => setBrand((b) => ({ ...(b || { name: "" }), name: e.target.value }))}
                       placeholder="مثال: شركة البناء الحديثة"
                       className="h-11"
+                      disabled={vendorStatus !== "approved"}
                     />
                   </div>
                   <div>
@@ -771,6 +831,7 @@ export default function SellerHomePage() {
                         }
                       }}
                       className="h-11"
+                      disabled={vendorStatus !== "approved"}
                     />
                   </div>
                 </div>
@@ -778,7 +839,7 @@ export default function SellerHomePage() {
                 <div className="flex justify-end gap-2 mt-2 pt-4 border-t">
                   <Button
                     className="bg-[#C17A3C] hover:bg-[#A66A30] px-6"
-                    disabled={loadingBrand || !token}
+                    disabled={loadingBrand || !token || vendorStatus !== "approved"}
                     onClick={async () => {
                       await handleSaveBrand()
                       if (!token) return
@@ -818,6 +879,7 @@ export default function SellerHomePage() {
                       onChange={(e) => setFactoryForm((f) => ({ ...f, name: e.target.value }))}
                       placeholder="مثال: مصنع مواد البناء الحديث"
                       className="h-11"
+                      disabled={vendorStatus !== "approved"}
                     />
                   </div>
                   <div>
@@ -827,34 +889,36 @@ export default function SellerHomePage() {
                       onChange={(e) => setFactoryForm((f) => ({ ...f, location: e.target.value }))}
                       placeholder="الرياض، جدة..."
                       className="h-11"
+                      disabled={vendorStatus !== "approved"}
                     />
                   </div>
                   <div>
                     <Label className="text-sm mb-2 block font-medium">الفئة</Label>
                     <Select
-  value={factoryForm.category || ""}
-  onValueChange={(value) => setFactoryForm((f) => ({ ...f, category: value }))}
-  dir="rtl"
->
-  <SelectTrigger className="h-11 w-full text-right ">
-    <SelectValue placeholder="اختر فئة المصنع" />
-  </SelectTrigger>
+                      value={factoryForm.category || ""}
+                      onValueChange={(value) => setFactoryForm((f) => ({ ...f, category: value }))}
+                      dir="rtl"
+                      disabled={vendorStatus !== "approved"}
+                    >
+                      <SelectTrigger className="h-11 w-full text-right ">
+                        <SelectValue placeholder="اختر فئة المصنع" />
+                      </SelectTrigger>
 
-  <SelectContent dir="rtl" className="text-right">
-    <SelectItem value="المواد الكميائىة">المواد الكميائىة</SelectItem>
-    <SelectItem value="البناء والعقار">البناء والعقار</SelectItem>
-    <SelectItem value="المركبات وملحقاتها">المركبات وملحقاتها</SelectItem>
-    <SelectItem value="الزراعة">الزراعة</SelectItem>
-    <SelectItem value="الاضادة والمصابيح">الاضادة والمصابيح</SelectItem>
-    <SelectItem value="الاجهزة">الاجهزة</SelectItem>
-    <SelectItem value="ملابس و أزياء">ملابس و أزياء</SelectItem>
-    <SelectItem value="معدات وخدمات تجارية">معدات وخدمات تجارية</SelectItem>
-    <SelectItem value="مطاط بلاستيك واسفنج">مطاط بلاستيك واسفنج</SelectItem>
-    <SelectItem value="المنزل والحديقة">المنزل والحديقة</SelectItem>
-    <SelectItem value="الماعدن والتعدين">الماعدن والتعدين</SelectItem>
-    <SelectItem value="معدات الخدمات التجارية">معدات الخدمات التجارية</SelectItem>
-  </SelectContent>
-</Select>
+                      <SelectContent dir="rtl" className="text-right">
+                        <SelectItem value="المواد الكميائىة">المواد الكميائىة</SelectItem>
+                        <SelectItem value="البناء والعقار">البناء والعقار</SelectItem>
+                        <SelectItem value="المركبات وملحقاتها">المركبات وملحقاتها</SelectItem>
+                        <SelectItem value="الزراعة">الزراعة</SelectItem>
+                        <SelectItem value="الاضادة والمصابيح">الاضادة والمصابيح</SelectItem>
+                        <SelectItem value="الاجهزة">الاجهزة</SelectItem>
+                        <SelectItem value="ملابس و أزياء">ملابس و أزياء</SelectItem>
+                        <SelectItem value="معدات وخدمات تجارية">معدات وخدمات تجارية</SelectItem>
+                        <SelectItem value="مطاط بلاستيك واسفنج">مطاط بلاستيك واسفنج</SelectItem>
+                        <SelectItem value="المنزل والحديقة">المنزل والحديقة</SelectItem>
+                        <SelectItem value="الماعدن والتعدين">الماعدن والتعدين</SelectItem>
+                        <SelectItem value="معدات الخدمات التجارية">معدات الخدمات التجارية</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-sm mb-2 block font-medium">صورة المصنع</Label>
@@ -867,6 +931,7 @@ export default function SellerHomePage() {
                         setFactoryImageFile(file)
                       }}
                       className="h-11"
+                      disabled={vendorStatus !== "approved"}
                     />
                   </div>
                 </div>
@@ -885,7 +950,7 @@ export default function SellerHomePage() {
                   </Button>
                   <Button
                     className="bg-[#C17A3C] hover:bg-[#A66A30] px-8"
-                    disabled={loadingFactories || !token}
+                    disabled={loadingFactories || !token || vendorStatus !== "approved"}
                     onClick={handleSubmitFactory}
                   >
                     <Plus className="w-4 h-4 ml-2" />

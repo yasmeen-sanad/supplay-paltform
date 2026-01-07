@@ -3,34 +3,30 @@
 import Link from "next/link"
 import { Mail, Lock } from "lucide-react"
 import { Header } from "@/components/header"
-import { useState } from "react"
+import { useFormValidation } from "@/hooks/use-form-validation"
+import { loginSchema, LoginFormData } from "@/lib/validation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSubmit = async () => {
-    if (!identifier || !password) {
-      setError("الرجاء إدخال البريد الإلكتروني أو رقم الجوال وكلمة المرور")
-      return
-    }
-    
-    try {
-      setLoading(true)
-      setError(null)
-
+  const { form, handleSubmit, isSubmitting } = useFormValidation({
+    schema: loginSchema,
+    defaultValues: {
+      identifier: "",
+      password: "",
+    },
+    onSubmit: async (data: LoginFormData) => {
       const body: { email?: string; phone?: string; password: string } = {
-        password,
+        password: data.password,
       }
 
-      if (identifier.includes("@")) {
-        body.email = identifier
+      if (data.identifier.includes("@")) {
+        body.email = data.identifier
       } else {
-        body.phone = identifier
+        body.phone = data.identifier
       }
 
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -41,30 +37,28 @@ export default function LoginPage() {
         body: JSON.stringify(body),
       })
 
-      const data = await res.json()
+      const responseData = await res.json()
 
-      if (!data.success) {
-        throw new Error(data.message || "فشل تسجيل الدخول")
+      if (!responseData.success) {
+        throw new Error(responseData.message || "فشل تسجيل الدخول")
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", data.token)
-        localStorage.setItem("user", JSON.stringify(data.user))
+        localStorage.setItem("token", responseData.token)
+        localStorage.setItem("user", JSON.stringify(responseData.user))
       }
 
-      const role = data.user?.role
+      const role = responseData.user?.role
 
-      if (role === "seller") {
+      if (role === "admin") {
+        window.location.href = "/admin"
+      } else if (role === "seller") {
         window.location.href = "/seller"
       } else {
         window.location.href = "/profile"
       }
-    } catch (err: any) {
-      setError(err.message || "حدث خطأ أثناء تسجيل الدخول")
-    } finally {
-      setLoading(false)
-    }
-  }
+    },
+  })
 
   return (
     <div className="min-h-screen w-full bg-[#F5F1E8] bg-fixed">
@@ -119,44 +113,70 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Email / phone field */}
-            <div className="space-y-4 mb-6">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="ادخل البريد الإلكتروني أو رقم الجوال"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C17A3C]/70 focus:border-[#C17A3C]"
+            {/* Form */}
+            <Form {...form}>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {(form.formState.errors as any)?.root?.message && (
+                  <p className="text-xs md:text-sm text-red-600 text-center">
+                    {(form.formState.errors as any).root.message}
+                  </p>
+                )}
+                {/* Email / phone field */}
+                <FormField
+                  control={form.control}
+                  name="identifier"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            placeholder="ادخل البريد الإلكتروني أو رقم الجوال"
+                            className="pr-11 text-right"
+                            {...field}
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C17A3C]">
+                            <Mail className="w-5 h-5" />
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C17A3C]">
-                  <Mail className="w-5 h-5" />
-                </span>
-              </div>
 
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="ادخل رمز المرور"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C17A3C]/70 focus:border-[#C17A3C]"
+                {/* Password field */}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="password"
+                            placeholder="ادخل رمز المرور"
+                            className="pr-11 text-right"
+                            {...field}
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C17A3C]">
+                            <Lock className="w-5 h-5" />
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C17A3C]">
-                  <Lock className="w-5 h-5" />
-                </span>
-              </div>
-            </div>
 
-            {error && <p className="mb-3 text-xs md:text-sm text-red-600 text-center">{error}</p>}
-
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-[#C7A17A] hover:bg-[#A66A30] text-white text-sm font-semibold shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {loading ? "جاري تسجيل الدخول..." : "إرسال"}
-            </button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 rounded-2xl bg-[#C7A17A] hover:bg-[#A66A30] text-white text-sm font-semibold shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "جاري تسجيل الدخول..." : "إرسال"}
+                </Button>
+              </form>
+            </Form>
 
             <div className="mt-4 text-center text-xs md:text-sm text-gray-600">
               ليس لديك حساب؟{" "}

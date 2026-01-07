@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { usePlatformSettings } from "@/hooks/usePlatformSettings"
 
 export default function HeroSection() {
   const [isVisible, setIsVisible] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const { settings } = usePlatformSettings()
 
   useEffect(() => {
     setIsVisible(true)
@@ -96,8 +98,8 @@ export default function HeroSection() {
                 }`}
               >
                 <span className="bg-gradient-to-l from-[#0F2647] via-[#1E3A5F] to-[#2A4473] bg-clip-text text-transparent">
- منصة المورد المتكاملة
-</span>
+                  {settings.platformName}
+                </span>
               </h1>
 
               <p

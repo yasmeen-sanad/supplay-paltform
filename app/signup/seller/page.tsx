@@ -4,6 +4,11 @@ import { useState } from "react"
 import Link from "next/link"
 import { Mail, ShieldCheck, Building2, Phone } from "lucide-react"
 import { Header } from "@/components/header"
+import { useFormValidation } from "@/hooks/use-form-validation"
+import { registerSchema, RegisterFormData } from "@/lib/validation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string
 
@@ -16,67 +21,61 @@ const steps = [
 export default function SellerSignupWizard() {
   const [step, setStep] = useState(1)
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [storeName, setStoreName] = useState("")
-  const [commercialRegister, setCommercialRegister] = useState("")
-  const [phone, setPhone] = useState("")
-  const [storeAddress, setStoreAddress] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const next = () => setStep((s) => Math.min(3, s + 1))
-  const prev = () => setStep((s) => Math.max(1, s - 1))
-
-  const handleSubmit = async () => {
-    if (!email || !password || !storeName) {
-      setError("الرجاء إدخال البريد الإلكتروني، اسم المتجر وكلمة المرور")
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError("كلمتا المرور غير متطابقتين")
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-
+  const { form, handleSubmit, isSubmitting } = useFormValidation({
+    schema: registerSchema,
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      phone: "",
+      address: "",
+      role: "seller",
+    },
+    onSubmit: async (data: RegisterFormData) => {
       const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: storeName,
-          email,
-          password,
-          phone,
-          address: storeAddress,
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          phone: data.phone,
+          address: data.address,
           role: "seller",
         }),
       })
 
-      const data = await res.json()
+      const responseData = await res.json()
 
-      if (!data.success) {
-        throw new Error(data.message || "فشل إنشاء الحساب")
+      if (!responseData.success) {
+        throw new Error(responseData.message || "فشل إنشاء الحساب")
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", data.token)
-        localStorage.setItem("user", JSON.stringify(data.user))
+        localStorage.setItem("token", responseData.token)
+        localStorage.setItem("user", JSON.stringify(responseData.user))
       }
 
       window.location.href = "/"
-    } catch (err: any) {
-      setError(err.message || "حدث خطأ أثناء إنشاء الحساب")
-    } finally {
-      setLoading(false)
+    },
+  })
+
+  const next = async () => {
+    // Validate current step before proceeding
+    if (step === 1) {
+      const emailValid = await form.trigger("email")
+      if (!emailValid) return
+    } else if (step === 2) {
+      const passwordValid = await form.trigger(["password", "confirmPassword"])
+      if (!passwordValid) return
     }
+    setStep((s) => Math.min(3, s + 1))
   }
+
+  const prev = () => setStep((s) => Math.max(1, s - 1))
 
   return (
     <div className="min-h-screen w-full bg-[#F5F1E8]" dir="rtl">
@@ -121,126 +120,189 @@ export default function SellerSignupWizard() {
           </div>
 
           {/* Step content */}
-          <div className="space-y-5 mb-8">
-            {step === 1 && (
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-right text-gray-800 mb-1">
-                  البريد الإلكتروني للمؤسسة
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    placeholder="ادخل البريد الإلكتروني"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C7A17A]/70 focus:border-[#C7A17A]"
+          <Form {...form}>
+            <form onSubmit={handleSubmit} className="space-y-5 mb-8">
+              {step === 1 && (
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="block text-sm font-semibold text-right text-gray-800 mb-1">
+                        البريد الإلكتروني للمؤسسة
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="email"
+                            placeholder="ادخل البريد الإلكتروني"
+                            className="pr-11 text-right"
+                            {...field}
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C7A17A]">
+                            <Mail className="w-5 h-5" />
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="block text-sm font-semibold text-right text-gray-800 mb-1">
+                          كلمة المرور
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="كلمة المرور"
+                            className="text-right"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C7A17A]">
-                    <Mail className="w-5 h-5" />
-                  </span>
+                  
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="block text-sm font-semibold text-right text-gray-800 mb-1">
+                          تأكيد كلمة المرور
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="تأكيد كلمة المرور"
+                            className="text-right"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </div>
-            )}
+              )}
 
-            {step === 2 && (
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-right text-gray-800 mb-1">
-                  كلمة المرور
-                </label>
-                <input
-                  type="password"
-                  placeholder="كلمة المرور"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 px-4 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C7A17A]/70 focus:border-[#C7A17A]"
-                />
-                <input
-                  type="password"
-                  placeholder="تأكيد كلمة المرور"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 px-4 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C7A17A]/70 focus:border-[#C7A17A]"
-                />
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-800 text-right mb-1">معلومات المتجر</h2>
-                <input
-                  type="text"
-                  placeholder="اسم المتجر / المؤسسة"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 px-4 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C17A3C]/70 focus:border-[#C17A3C]"
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder="رقم السجل التجاري"
-                    value={commercialRegister}
-                    onChange={(e) => setCommercialRegister(e.target.value)}
-                    className="rounded-2xl border border-gray-200 bg-white py-3 px-4 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C7A17A]/70 focus:border-[#C7A17A]"
+              {step === 3 && (
+                <div className="space-y-4">
+                  <h2 className="text-sm font-semibold text-gray-800 text-right mb-1">معلومات المتجر</h2>
+                  
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="اسم المتجر / المؤسسة"
+                            className="text-right"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      placeholder="رقم الجوال"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full rounded-2xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C7A17A]/70 focus:border-[#C7A17A]"
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      type="text"
+                      placeholder="رقم السجل التجاري"
+                      className="text-right"
                     />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C7A17A]">
-                      <Phone className="w-5 h-5" />
-                    </span>
+                    
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                type="tel"
+                                placeholder="رقم الجوال"
+                                className="pr-11 text-right"
+                                {...field}
+                              />
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C7A17A]">
+                                <Phone className="w-5 h-5" />
+                              </span>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="عنوان المتجر"
+                            className="text-right"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="عنوان المتجر"
-                  value={storeAddress}
-                  onChange={(e) => setStoreAddress(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 px-4 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#C17A3C]/70 focus:border-[#C17A3C]"
-                />
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  type="button"
+                  onClick={step === 1 ? undefined : prev}
+                  className={`px-5 py-2.5 bg-[#C7A17A] hover:bg-[#A66A30] rounded-2xl text-sm font-semibold border transition-colors ${
+                    step === 1
+                      ? "border-gray-200 text-white cursor-default"
+                      : "border-gray-300 text-white hover:bg-gray-50"
+                  }`}
+                >
+                  رجوع
+                </Button>
+
+                {step < 3 ? (
+                  <Button
+                    type="button"
+                    onClick={next}
+                    className="flex-1 py-3 rounded-2xl bg-[#C7A17A] hover:bg-[#A66A30] text-white text-sm font-semibold shadow-md transition-colors"
+                  >
+                    التالي
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-3 rounded-2xl bg-[#C17A3C] hover:bg-[#A66A30] text-white text-sm font-semibold shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-
-          {error && <p className="mb-3 text-xs md:text-sm text-red-600 text-center">{error}</p>}
-
-          {/* Actions */}
-          <div className="flex items-center justify-between gap-4">
-            <button
-              type="button"
-              onClick={step === 1 ? undefined : prev}
-              className={`px-5 py-2.5 rounded-2xl text-sm font-semibold border transition-colors ${
-                step === 1
-                  ? "border-gray-200 text-gray-400 cursor-default"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              رجوع
-            </button>
-
-            {step < 3 ? (
-              <button
-                type="button"
-                onClick={next}
-                className="flex-1 py-3 rounded-2xl bg-[#C7A17A] hover:bg-[#A66A30] text-white text-sm font-semibold shadow-md transition-colors"
-              >
-                التالي
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex-1 py-3 rounded-2xl bg-[#C17A3C] hover:bg-[#A66A30] text_white text-sm font-semibold shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {loading ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}
-              </button>
-            )}
-          </div>
+            </form>
+          </Form>
 
           <p className="mt-4 text-center text-xs md:text-sm text-gray-600">
             لديك حساب بالفعل؟{" "}
